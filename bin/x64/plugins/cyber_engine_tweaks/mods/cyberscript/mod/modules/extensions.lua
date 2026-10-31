@@ -113,7 +113,7 @@ local function register(registry, kind, name, handler, owner)
 		logme(1, "[CyberScript extensions] custom " .. kind .. " '" .. name .. "' rejected: handler must be a function", true)
 		return false
 	end
-	if registry[name] ~= nil then
+	if registry[name] ~= nil and registry[name].owner ~= (owner or "unknown") then
 		logme(1, "[CyberScript extensions] custom " .. kind .. " '" .. name .. "' was already registered by " .. tostring(registry[name].owner) .. "; replacing it", true)
 	end
 	registry[name] = { handler = handler, owner = owner or "unknown" }
