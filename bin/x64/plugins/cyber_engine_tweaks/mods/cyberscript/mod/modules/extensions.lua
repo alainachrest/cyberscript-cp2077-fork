@@ -27,6 +27,10 @@ so they can never clash with CyberScript's built-in names, which never use ":".
 logme(10, "CyberScript: extensions module loaded")
 cyberscript.module = cyberscript.module + 1
 
+-- Modules are loaded again on every save load. Keep the one extension layer, so
+-- the listeners, actions and triggers other mods registered aren't lost.
+if cyberscriptExtensions ~= nil then return cyberscriptExtensions end
+
 local extensions = {
 	listeners = {},   -- event name -> { id -> callback }
 	listenerCount = {}, -- event name -> number of listeners

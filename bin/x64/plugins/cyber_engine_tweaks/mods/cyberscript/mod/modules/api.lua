@@ -132,7 +132,11 @@ end
 -- CyberScript builds that don't have them.
 ---------------------------------------------------------------------------
 
-api.apiVersion = 1
+api.apiVersion = 2
+
+-- The shared core (apiVersion 2): organisations, the stock market, the news
+-- feed, heat and standing, shared by every mod. See sharedcore/sharedcore.lua.
+api.core = cyberscript.sharedcore
 
 -- Listen to a CyberScript event. Returns an id to pass to api.off.
 --   "action"   { name, tag, source, executortag, success, error, custom }
