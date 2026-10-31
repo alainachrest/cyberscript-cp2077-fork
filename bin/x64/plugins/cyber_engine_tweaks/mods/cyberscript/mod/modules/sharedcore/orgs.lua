@@ -30,6 +30,13 @@ return function(Core)
 		{ id = "tygerclaws",  name = "Tyger Claws",               kind = "gang",  region = "nc" },
 		{ id = "valentinos",  name = "Valentinos",                kind = "gang",  region = "nc" },
 		{ id = "sixthstreet", name = "6th Street",                kind = "gang",  region = "nc" },
+		{ id = "mox",         name = "Mox",                       kind = "gang",  region = "nc" },
+		{ id = "animals",     name = "Animals",                   kind = "gang",  region = "nc" },
+		{ id = "voodooboys",  name = "Voodoo Boys",               kind = "gang",  region = "nc" },
+		{ id = "scavengers",  name = "Scavengers",                kind = "gang",  region = "nc" },
+		{ id = "wraiths",     name = "Wraiths",                   kind = "gang",  region = "nc" },
+		{ id = "aldecaldos",  name = "Aldecaldos",                kind = "gang",  region = "nc" },
+		{ id = "barghest",    name = "Barghest",                  kind = "gang",  region = "nc" },
 		{ id = "unregistered", name = "Unregistered",             kind = "device", region = "nc" },
 		{ id = "civilian",    name = "Independent",               kind = "civilian", region = "nc" },
 	}
