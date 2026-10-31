@@ -13,6 +13,8 @@ end
 
 Check `apiVersion` so your mod still loads on CyberScript builds without this API.
 
+`apiVersion` 2 adds the shared core (`cs.api.core`): organisations, the stock market, the news feed, heat and standing, shared by every mod. See [SHARED_CORE.md](SHARED_CORE.md).
+
 ## Events
 
 ```lua
