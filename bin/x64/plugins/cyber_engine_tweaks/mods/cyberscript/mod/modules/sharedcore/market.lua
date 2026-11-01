@@ -27,6 +27,18 @@ return function(Core)
 		{ ticker = "N54", name = "Network 54",         org = "network54",   price = 140, vol = 0.020, rivals = { "WNS" } },
 		{ ticker = "WNS", name = "World News Service", org = "wns",         price = 110, vol = 0.020, rivals = { "N54" } },
 		{ ticker = "DLM", name = "Delamain",           org = "delamain",    price = 90,  vol = 0.025 },
+		{ ticker = "ESA", name = "European Space Agency", org = "esa",       price = 280, vol = 0.010 },
+		{ ticker = "NCPD", name = "NCPD",              org = "ncpd",        price = 120, vol = 0.012, rivals = { "NWT" } },
+		{ ticker = "NWT", name = "NetWatch",           org = "netwatch",    price = 360, vol = 0.011, rivals = { "NCPD" } },
+		{ ticker = "RKA", name = "Rocklin Augmentics", org = "rocklin",     price = 210, vol = 0.020, rivals = { "DYN", "ZHI" } },
+		{ ticker = "DYN", name = "Dynalar Technologies", org = "dynalar",   price = 190, vol = 0.021, rivals = { "RKA", "KIR" } },
+		{ ticker = "ZHI", name = "Zhirafa Technical",  org = "zhirafa",     price = 160, vol = 0.022, rivals = { "RKA", "SOV" } },
+		{ ticker = "SGT", name = "Segatari",           org = "segatari",    price = 130, vol = 0.023, rivals = { "ZTC", "KIR" } },
+		{ ticker = "MDA", name = "Midnight Arms",      org = "midnightarms", price = 230, vol = 0.019, rivals = { "CNA", "BGA" } },
+		{ ticker = "CNA", name = "Constitutional Arms", org = "constitutionalarms", price = 200, vol = 0.018, rivals = { "MDA", "DPT" } },
+		{ ticker = "BGA", name = "Budget Arms",        org = "budgetarms",  price = 45,  vol = 0.030, rivals = { "MDA", "DPT" } },
+		{ ticker = "DPT", name = "Darra Polytechnic",  org = "darra",       price = 240, vol = 0.019, rivals = { "TSU", "BGA" } },
+		{ ticker = "TSU", name = "Tsunami Defense Systems", org = "tsunami", price = 270, vol = 0.018, rivals = { "DPT", "MIL", "ARA" } },
 	}
 
 	-- def: { ticker, name, org?, price, vol?, rivals? }. Returns the company, or nil and why.

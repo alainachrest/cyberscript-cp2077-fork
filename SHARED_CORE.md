@@ -16,7 +16,7 @@ local core = cs and cs.api and (cs.api.apiVersion or 0) >= 2 and cs.api.core
 | Part | What it does |
 | --- | --- |
 | `core.orgs` | Corporations, gangs and other organisations, and world regions. `get(id)`, `all(kind)`, `register({ id, name, kind, region, ... })` to add your own (or add fields to an existing one), `region(id)`. Register yours again on every load. |
-| `core.market` | The stock exchange. `get(ticker)`, `forOrg(org)`, `price`, `change`, `history`, `held`, `buy(ticker, qty)`, `sell(ticker, qty or "all")`, `portfolio()`, `shock(ticker, pct, why)`, `addTip(ticker, pct, steps, headline)`, `listCompany({ ticker, name, org, price, vol, rivals })`, `delist(ticker)`. Prices step every 30 seconds of play. |
+| `core.market` | The stock exchange. `get(ticker)`, `forOrg(org)`, `price`, `change`, `history`, `held`, `buy(ticker, qty)`, `sell(ticker, qty or "all")`, `portfolio()`, `shock(ticker, pct, why)`, `addTip(ticker, pct, steps, headline)`, `listCompany({ ticker, name, org, price, vol, rivals })`, `delist(ticker)`. Prices step every 30 seconds of play. 25 companies are listed: every corporation, both media companies, NCPD and NetWatch. |
 | `core.news` | One news feed. `add(text, { source, org })`, `list(n)`, `texts(n)`. Keeps the latest 60 stories. |
 | `core.heat` | Attention V is drawing, 0 to 100, per channel (`"netwatch"`, `"ncpd"`, anything). `get`, `add`, `set`, `all`, `setDecay(channel, perMinute)`. |
 | `core.standing` | How each organisation feels about V, -100 to 100. `get`, `change`, `set`, `all`, `describe(value)`. Shared with CyberScript's `Affinity` (key `faction_<org>`), so a Gangs of Night City choice and a Real Netrunning hack move the same number. |
