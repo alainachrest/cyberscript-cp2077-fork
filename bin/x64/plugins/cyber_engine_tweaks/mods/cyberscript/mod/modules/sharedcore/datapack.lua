@@ -12,6 +12,8 @@
 --   { "name": "core:person_status",   "person": "p:12", "value": "hurt" }
 --   { "name": "core:person_remember", "person": "p:12", "kind": "saved", "text": "V pulled them out of a fire", "by": "player" }
 --   { "name": "core:person_relate",   "person": "p:12", "other": "p:13", "value": "friend" }
+--   { "name": "core:person_affiliate", "person": "p:12", "org": "tygerclaws", "value": "member", "secret": true }
+--   { "name": "core:person_leave",    "person": "p:12", "org": "tygerclaws" }
 --
 -- Triggers (in requirements; "expected" works as usual):
 --   { "name": "core:heat_above",       "channel": "netwatch", "value": 50 }
@@ -22,6 +24,8 @@
 --   { "name": "core:person_opinion_above", "person": "p:12", "value": 30 }
 --   { "name": "core:person_opinion_below", "person": "p:12", "value": -30 }
 --   { "name": "core:person_status",    "person": "p:12", "value": "alive" }
+--   { "name": "core:person_affiliated", "person": "p:12", "org": "tygerclaws" }
+--   { "name": "core:person_attitude_above", "person": "p:12", "value": 20 }
 --
 -- Variables (kept in step automatically):
 --   tag "core_heat", key = channel          tag "core_standing", key = organisation
@@ -44,6 +48,10 @@ return function(Core)
 		["core:person_status"] = function(a) Core.people.update(a.person, { status = a.value }, a.why or "datapack") end,
 		["core:person_remember"] = function(a) Core.people.remember(a.person, a.kind or "event", a.text or a.value, a.by) end,
 		["core:person_relate"] = function(a) Core.people.relate(a.person, a.other, a.value, a.why or "datapack") end,
+		["core:person_affiliate"] = function(a)
+			Core.people.affiliate(a.person, a.org, a.value, { secret = a.secret }, a.why or "datapack")
+		end,
+		["core:person_leave"] = function(a) Core.people.leave(a.person, a.org, a.why or "datapack") end,
 		["core:give_shares"] = function(a)
 			local s = Core.market.state()
 			local c = Core.market.get(a.ticker)
@@ -62,6 +70,8 @@ return function(Core)
 		["core:owns_shares"] = function(t) return Core.market.held(tostring(t.ticker or ""):upper()) >= num(t.value, 1) end,
 		["core:person_opinion_above"] = function(t) return Core.people.opinion(t.person) > num(t.value) end,
 		["core:person_opinion_below"] = function(t) return Core.people.opinion(t.person) < num(t.value) end,
+		["core:person_affiliated"] = function(t) return Core.people.isAffiliated(t.person, t.org) ~= nil end,
+		["core:person_attitude_above"] = function(t) return Core.people.attitude(t.person) > num(t.value) end,
 		["core:person_status"] = function(t)
 			local p = Core.people.get(t.person)
 			return p ~= nil and p.status == (t.value or "alive")

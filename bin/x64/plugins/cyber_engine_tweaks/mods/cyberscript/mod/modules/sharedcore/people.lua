@@ -14,6 +14,10 @@
 --
 -- A person: { id, name, first, last, gender, pronoun, look = { record, appearance },
 --   age, home, place, job, org, district, traits = { ... }, status, source }
+--   affiliations = { { org, role, secret }, ... }: the gangs, corporations and
+--   other organisations they belong to (none at all for many people).
+--   org is where they work; an affiliation is who they're with. A noodle cook
+--   can be a Tyger Claw, an Arasaka clerk can secretly run for the Mox.
 --   status: "alive" (default), "hurt", "missing", "dead", or anything a mod uses
 --
 -- Each person also has relationships with other people, a history of what
@@ -88,6 +92,27 @@ return function(Core)
 		parent = "child", child = "parent", boss = "employee", employee = "boss",
 	}
 
+	-- Which gangs run each district's streets, for generated people's ties.
+	people.districtGangs = {
+		watson = { "maelstrom", "tygerclaws", "scavengers", "mox" },
+		westbrook = { "tygerclaws", "mox" },
+		heywood = { "valentinos", "sixthstreet" },
+		santodomingo = { "sixthstreet", "valentinos", "maelstrom" },
+		pacifica = { "voodooboys", "animals", "barghest" },
+		citycenter = { "tygerclaws", "valentinos" },
+		badlands = { "wraiths", "aldecaldos" },
+	}
+
+	-- Kinds of organisation whose staff count as affiliated with it.
+	local AFFILIATING = { corp = true, gang = true, media = true, city = true }
+	local function roleFor(orgId)
+		local o = Core.orgs.get(orgId)
+		if o == nil then return nil end
+		if o.kind == "gang" then return "member" end
+		if AFFILIATING[o.kind] then return "employee" end
+		return nil
+	end
+
 	---------------------------------------------------------------------------
 	-- Saved state: only what changed
 	---------------------------------------------------------------------------
@@ -153,6 +178,26 @@ return function(Core)
 			if traits[1] ~= t then table.insert(traits, t) end
 		end
 		local jobs = opts.jobs or { opts.job or "staff" }
+		-- who they're with: the place's own organisation, a street gang, or nobody
+		local arng = Rng.new(seed(), "affiliation", place, n)
+		local affiliations = {}
+		if opts.affiliation then
+			table.insert(affiliations, { org = opts.affiliation, role = opts.role or roleFor(opts.affiliation) or "member" })
+		elseif opts.org and roleFor(opts.org) then
+			table.insert(affiliations, { org = opts.org, role = roleFor(opts.org) })
+		end
+		local gangs = people.districtGangs[opts.district or ""] or {}
+		local gangChance = opts.gangChance or (#affiliations == 0 and 0.2 or 0.05)
+		if #gangs > 0 and arng:chance(gangChance) then
+			local g = arng:pick(gangs)
+			local already = false
+			for _, a in ipairs(affiliations) do if a.org == g then already = true end end
+			if not already then
+				-- a gang tie on the side is often kept quiet
+				table.insert(affiliations, { org = g, role = arng:chance(0.7) and "member" or "associate",
+					secret = #affiliations > 0 or arng:chance(0.4) })
+			end
+		end
 		return {
 			id = "gen:" .. place .. ":" .. n, source = "generated",
 			name = first .. " " .. last, first = first, last = last, gender = gender, pronoun = pronoun,
@@ -160,6 +205,7 @@ return function(Core)
 			age = rng:int(opts.minAge or 19, opts.maxAge or 64),
 			place = place, home = opts.home, job = jobs[((n - 1) % #jobs) + 1], org = opts.org,
 			district = opts.district, lifestyle = lifestyle, traits = traits, status = "alive",
+			affiliations = affiliations,
 		}
 	end
 
@@ -196,7 +242,12 @@ return function(Core)
 
 	-- Makes the people of a place, or gives back the ones already made.
 	-- place: any string a mod picks ("rn:watson.hotel-3a", "corp:arasaka:hr").
-	-- opts: { count, lifestyle, job, jobs = { ... }, org, home, district, minAge, maxAge }
+	-- opts: { count, lifestyle, job, jobs = { ... }, org, home, district, minAge, maxAge,
+	--   affiliation, role, gangChance }
+	--   org: where they work (a gang or corp's staff belong to it); affiliation: an
+	--   organisation everyone here belongs to (a gang's crew); gangChance: how
+	--   likely each is to have ties to one of the district's gangs (default 0.2,
+	--   0.05 for people who already belong somewhere). Everyone else is unaffiliated.
 	-- Returns the ids, in order. Populating the same place again returns the same people.
 	function people.populate(place, opts)
 		local st = state()
@@ -227,6 +278,7 @@ return function(Core)
 		local p = copy(def)
 		p.source = p.source or "registered"
 		p.status = p.status or "alive"
+		p.affiliations = p.affiliations or {}
 		if p.name == nil then p.name = (((p.first or "") .. " " .. (p.last or "")):gsub("^%s+", ""):gsub("%s+$", "")) end
 		people.registered[p.id] = p
 		remember(p)
@@ -236,7 +288,8 @@ return function(Core)
 
 	-- Someone another mod already knows about, made a full person the first time
 	-- they matter. def: { key (unique to them, e.g. "rn:watson.pc-1a2b:m.reyes"),
-	-- name?, first?, last?, initial?, handle?, gender?, lifestyle?, job?, org?, place?, home?, district? }.
+	-- name?, first?, last?, initial?, handle?, gender?, lifestyle?, job?, org?, place?, home?, district?,
+	-- affiliations? }. Without affiliations, working for a gang or corp makes them one of its people.
 	-- initial: the first letter of their first name, if that's all that's known;
 	-- handle: a street name, kept in quotes in the full name.
 	-- Missing details are filled in from the key, so the same key always gives
@@ -270,7 +323,18 @@ return function(Core)
 			age = def.age or rng:int(19, 64), place = def.place, home = def.home, job = def.job, org = def.org,
 			district = def.district, lifestyle = def.lifestyle or "worker",
 			traits = def.traits or { rng:pick(people.traitList), rng:pick(people.traitList) }, status = "alive",
+			affiliations = def.affiliations and copy(def.affiliations)
+				or (def.org and roleFor(def.org) and { { org = def.org, role = roleFor(def.org) } }) or {},
 		}
+		-- nobody said who they're with: like generated people, some have ties to the district's gangs
+		if def.affiliations == nil and #p.affiliations == 0 then
+			local gangs = people.districtGangs[def.district or ""] or {}
+			local arng = Rng.new(seed(), "affiliation", def.key)
+			if #gangs > 0 and arng:chance(def.gangChance or 0.2) then
+				table.insert(p.affiliations, { org = arng:pick(gangs), role = arng:chance(0.7) and "member" or "associate",
+					secret = arng:chance(0.4) })
+			end
+		end
 		st.made[id] = p
 		st.keys[def.key] = id
 		remember(p)
@@ -325,6 +389,8 @@ return function(Core)
 	end
 
 	-- People matching every field given: people.find({ org = "maelstrom", status = "alive" }).
+	-- Special keys: affiliation = an org id (anyone with ties to it, secret or not),
+	-- unaffiliated = true (nobody's people), trait = one of their traits.
 	-- Only people already known (populated, registered or promoted) are searched.
 	function people.find(query)
 		local out = {}
@@ -333,7 +399,13 @@ return function(Core)
 			local ok = p ~= nil
 			for k, v in pairs(query or {}) do
 				if not ok then break end
-				if k == "trait" then
+				if k == "affiliation" then
+					local has = false
+					for _, a in ipairs(p.affiliations or {}) do if a.org == v then has = true end end
+					ok = has
+				elseif k == "unaffiliated" then
+					ok = ((#(p.affiliations or {}) == 0) == (v == true))
+				elseif k == "trait" then
 					local has = false
 					for _, t in ipairs(p.traits or {}) do if t == v then has = true end end
 					ok = has
@@ -407,6 +479,61 @@ return function(Core)
 	end
 
 	---------------------------------------------------------------------------
+	-- Affiliations
+	---------------------------------------------------------------------------
+
+	-- The organisations a person belongs to: { { org, role, secret }, ... } (empty: nobody's).
+	function people.affiliations(id)
+		local p = people.get(id)
+		return p and copy(p.affiliations or {}) or {}
+	end
+
+	-- Their role with an organisation ("member", "employee", "associate", "boss"...), or nil.
+	function people.isAffiliated(id, org)
+		for _, a in ipairs(people.affiliations(id)) do if a.org == org then return a.role, a.secret == true end end
+		return nil
+	end
+
+	-- Joins someone to an organisation, or changes their role there. opts: { secret }.
+	function people.affiliate(id, org, role, opts, why)
+		if people.get(id) == nil or type(org) ~= "string" then return false end
+		local list = people.affiliations(id)
+		local entry
+		for _, a in ipairs(list) do if a.org == org then entry = a end end
+		if entry == nil then entry = { org = org } table.insert(list, entry) end
+		entry.role = role or entry.role or roleFor(org) or "member"
+		if opts and opts.secret ~= nil then entry.secret = opts.secret == true end
+		people.update(id, { affiliations = list }, why)
+		Core.emit("people.affiliation", { id = id, org = org, role = entry.role, secret = entry.secret == true, joined = true, why = why })
+		return true
+	end
+
+	-- Takes someone out of an organisation (they quit, were thrown out, turned).
+	function people.leave(id, org, why)
+		local list, kept, left = people.affiliations(id), {}, false
+		for _, a in ipairs(list) do if a.org == org then left = true else table.insert(kept, a) end end
+		if not left then return false end
+		people.update(id, { affiliations = kept }, why)
+		Core.emit("people.affiliation", { id = id, org = org, joined = false, why = why })
+		return true
+	end
+
+	-- Everyone known who belongs to an organisation.
+	function people.members(org) return people.find({ affiliation = org }) end
+
+	-- How someone is likely to treat V: their own opinion, pulled toward how the
+	-- organisations they belong to (openly) feel about V. -100 to 100.
+	function people.attitude(id)
+		local own = people.opinion(id)
+		local pull, n = 0, 0
+		for _, a in ipairs(people.affiliations(id)) do
+			if not a.secret then pull = pull + Core.standing.get(a.org) n = n + 1 end
+		end
+		if n == 0 then return own end
+		return clamp(math.floor(own + (pull / n) * 0.5 + 0.5), -100, 100)
+	end
+
+	---------------------------------------------------------------------------
 	-- Relationships
 	---------------------------------------------------------------------------
 
@@ -426,12 +553,16 @@ return function(Core)
 	function people.relate(a, b, kind, why)
 		local st = state()
 		if st == nil or a == b or people.get(a) == nil or people.get(b) == nil then return false end
-		local back = people.relationKinds[kind]
-		local backKind = kind == nil and false or (type(back) == "string" and back or kind)
+		-- false (not nil) marks an untied pair, so it also hides a tie made at generation
+		local here, there = false, false
+		if kind ~= nil then
+			local back = people.relationKinds[kind]
+			here, there = kind, (type(back) == "string" and back or kind)
+		end
 		st.relations[a] = st.relations[a] or {}
 		st.relations[b] = st.relations[b] or {}
-		st.relations[a][b] = kind == nil and false or kind
-		st.relations[b][a] = backKind
+		st.relations[a][b] = here
+		st.relations[b][a] = there
 		Core.emit("people.relation", { a = a, b = b, kind = kind, why = why })
 		return true
 	end
