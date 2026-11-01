@@ -8,6 +8,10 @@
 --   { "name": "core:set_standing",    "org": "militech", "value": 50 }
 --   { "name": "core:market_shock",    "ticker": "ARA", "value": -0.08 }
 --   { "name": "core:give_shares",     "ticker": "MIL", "value": 10 }
+--   { "name": "core:person_opinion",  "person": "p:12", "value": -20 }
+--   { "name": "core:person_status",   "person": "p:12", "value": "hurt" }
+--   { "name": "core:person_remember", "person": "p:12", "kind": "saved", "text": "V pulled them out of a fire", "by": "player" }
+--   { "name": "core:person_relate",   "person": "p:12", "other": "p:13", "value": "friend" }
 --
 -- Triggers (in requirements; "expected" works as usual):
 --   { "name": "core:heat_above",       "channel": "netwatch", "value": 50 }
@@ -15,9 +19,13 @@
 --   { "name": "core:standing_below",   "org": "arasaka", "value": -20 }
 --   { "name": "core:share_price_above", "ticker": "ARA", "value": 900 }
 --   { "name": "core:owns_shares",      "ticker": "ARA", "value": 1 }
+--   { "name": "core:person_opinion_above", "person": "p:12", "value": 30 }
+--   { "name": "core:person_opinion_below", "person": "p:12", "value": -30 }
+--   { "name": "core:person_status",    "person": "p:12", "value": "alive" }
 --
 -- Variables (kept in step automatically):
 --   tag "core_heat", key = channel          tag "core_standing", key = organisation
+--   tag "core_opinion", key = person id (what they think of V)
 
 return function(Core)
 	local datapack = {}
@@ -32,6 +40,10 @@ return function(Core)
 		["core:change_standing"] = function(a) Core.standing.change(a.org, num(a.value), a.why or "datapack") end,
 		["core:set_standing"] = function(a) Core.standing.set(a.org, num(a.value), a.why or "datapack") end,
 		["core:market_shock"] = function(a) Core.market.shock(tostring(a.ticker or ""):upper(), num(a.value), a.why or "datapack") end,
+		["core:person_opinion"] = function(a) Core.people.changeOpinion(a.person, num(a.value), a.why or "datapack") end,
+		["core:person_status"] = function(a) Core.people.update(a.person, { status = a.value }, a.why or "datapack") end,
+		["core:person_remember"] = function(a) Core.people.remember(a.person, a.kind or "event", a.text or a.value, a.by) end,
+		["core:person_relate"] = function(a) Core.people.relate(a.person, a.other, a.value, a.why or "datapack") end,
 		["core:give_shares"] = function(a)
 			local s = Core.market.state()
 			local c = Core.market.get(a.ticker)
@@ -48,6 +60,12 @@ return function(Core)
 		["core:standing_below"] = function(t) return Core.standing.get(t.org) < num(t.value) end,
 		["core:share_price_above"] = function(t) return Core.market.price(tostring(t.ticker or ""):upper()) > num(t.value) end,
 		["core:owns_shares"] = function(t) return Core.market.held(tostring(t.ticker or ""):upper()) >= num(t.value, 1) end,
+		["core:person_opinion_above"] = function(t) return Core.people.opinion(t.person) > num(t.value) end,
+		["core:person_opinion_below"] = function(t) return Core.people.opinion(t.person) < num(t.value) end,
+		["core:person_status"] = function(t)
+			local p = Core.people.get(t.person)
+			return p ~= nil and p.status == (t.value or "alive")
+		end,
 	}
 
 	-- Called once CyberScript's extension layer is loaded.

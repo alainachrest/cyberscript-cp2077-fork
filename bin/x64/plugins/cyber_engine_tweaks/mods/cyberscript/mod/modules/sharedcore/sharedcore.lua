@@ -123,6 +123,7 @@ function Core.init(host, loader)
 	Core.news = load("news")(Core)
 	Core.heat, Core.standing = load("standing")(Core)
 	Core.market = load("market")(Core)
+	Core.people = load("people")(Core)
 	Core.datapack = load("datapack")(Core)
 	return Core
 end
