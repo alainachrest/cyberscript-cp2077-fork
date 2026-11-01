@@ -92,6 +92,26 @@ return function(Core)
 		parent = "child", child = "parent", boss = "employee", employee = "boss",
 	}
 
+	-- What a day's work pays, and what they usually have put by, by way of life (eddies).
+	people.wages = {
+		corpo = { 400, 900 }, rich = { 0, 0 }, worker = { 120, 250 }, vendor = { 100, 220 },
+		nightlife = { 100, 300 }, young = { 30, 120 }, street = { 0, 80 }, medical = { 200, 400 }, nomad = { 60, 150 },
+	}
+	people.savings = {
+		corpo = { 3000, 20000 }, rich = { 20000, 90000 }, worker = { 200, 3000 }, vendor = { 300, 4000 },
+		nightlife = { 100, 3000 }, young = { 0, 800 }, street = { 0, 300 }, medical = { 1000, 8000 }, nomad = { 100, 2000 },
+	}
+	-- What a day of living costs them (rent, food, chrome upkeep).
+	people.livingCost = {
+		corpo = 250, rich = 600, worker = 90, vendor = 80, nightlife = 90, young = 40, street = 20, medical = 150, nomad = 50,
+	}
+
+	local function moneyFor(rng, lifestyle)
+		local w = people.wages[lifestyle] or people.wages.worker
+		local sv = people.savings[lifestyle] or people.savings.worker
+		return rng:int(w[1], w[2]), rng:int(sv[1], sv[2])
+	end
+
 	-- Which gangs run each district's streets, for generated people's ties.
 	people.districtGangs = {
 		watson = { "maelstrom", "tygerclaws", "scavengers", "mox" },
@@ -178,6 +198,7 @@ return function(Core)
 			if traits[1] ~= t then table.insert(traits, t) end
 		end
 		local jobs = opts.jobs or { opts.job or "staff" }
+		local wage, money = moneyFor(Rng.new(seed(), "money", place, n), lifestyle)
 		-- who they're with: the place's own organisation, a street gang, or nobody
 		local arng = Rng.new(seed(), "affiliation", place, n)
 		local affiliations = {}
@@ -206,6 +227,7 @@ return function(Core)
 			place = place, home = opts.home, job = jobs[((n - 1) % #jobs) + 1], org = opts.org,
 			district = opts.district, lifestyle = lifestyle, traits = traits, status = "alive",
 			affiliations = affiliations,
+			wage = opts.wage or wage, money = money, employed = opts.employed ~= false,
 		}
 	end
 
@@ -323,9 +345,14 @@ return function(Core)
 			age = def.age or rng:int(19, 64), place = def.place, home = def.home, job = def.job, org = def.org,
 			district = def.district, lifestyle = def.lifestyle or "worker",
 			traits = def.traits or { rng:pick(people.traitList), rng:pick(people.traitList) }, status = "alive",
+			wage = def.wage, money = def.money, employed = def.employed ~= false,
 			affiliations = def.affiliations and copy(def.affiliations)
 				or (def.org and roleFor(def.org) and { { org = def.org, role = roleFor(def.org) } }) or {},
 		}
+		if p.wage == nil or p.money == nil then
+			local w, m = moneyFor(Rng.new(seed(), "money", def.key), p.lifestyle)
+			p.wage, p.money = p.wage or w, p.money or m
+		end
 		-- nobody said who they're with: like generated people, some have ties to the district's gangs
 		if def.affiliations == nil and #p.affiliations == 0 then
 			local gangs = people.districtGangs[def.district or ""] or {}
@@ -476,6 +503,95 @@ return function(Core)
 			Core.emit("people.opinion", { id = id, value = after, change = after - before, why = why })
 		end
 		return after
+	end
+
+	---------------------------------------------------------------------------
+	-- Money
+	---------------------------------------------------------------------------
+
+	function people.money(id)
+		local p = people.get(id)
+		return p and p.money or 0
+	end
+
+	-- Gives (or, with a negative amount, takes) eddies. Returns the new amount.
+	-- Fires "people.money" { id, value, change, why }.
+	function people.pay(id, amount, why)
+		local p = people.get(id)
+		if p == nil then return 0 end
+		local after = math.floor((p.money or 0) + (tonumber(amount) or 0))
+		people.update(id, { money = after }, why)
+		Core.emit("people.money", { id = id, value = after, change = after - (p.money or 0), why = why })
+		return after
+	end
+
+	-- The places a person owns (Core.places, owner = their id).
+	function people.owns(id) return Core.places and Core.places.ownedBy(id) or {} end
+
+	---------------------------------------------------------------------------
+	-- Bodies: which spawned NPC in the game is which person
+	---------------------------------------------------------------------------
+	-- A mod that spawns a person says so with people.bind(id, entityId). The core
+	-- then watches that NPC: if it dies the person is dead (and an incident is
+	-- reported), if it's knocked down they're hurt, and when it despawns the link
+	-- ends. Bindings last for the session (spawned NPCs don't survive a load).
+
+	people.bodies = {}   -- person id -> entity id
+	people.byBody = {}   -- tostring(entity hash) -> person id
+	people.watchEvery = 1.0
+	local watchTimer = 0
+
+	local function bodyKey(entity)
+		if entity == nil then return nil end
+		if type(entity) == "table" or type(entity) == "userdata" then
+			local ok, h = pcall(function() return entity.hash end)
+			if ok and h ~= nil then return tostring(h) end
+		end
+		return tostring(entity)
+	end
+
+	function people.bind(id, entity)
+		if people.get(id) == nil or entity == nil then return false end
+		people.unbind(id)
+		people.bodies[id] = entity
+		people.byBody[bodyKey(entity)] = id
+		Core.emit("people.bound", { id = id })
+		return true
+	end
+
+	function people.unbind(id)
+		local entity = people.bodies[id]
+		if entity == nil then return false end
+		people.byBody[bodyKey(entity)] = nil
+		people.bodies[id] = nil
+		Core.emit("people.unbound", { id = id })
+		return true
+	end
+
+	-- Which person a spawned NPC is (its entity id, or its hash), or nil.
+	function people.personFor(entity) return people.byBody[bodyKey(entity)] end
+	function people.entityFor(id) return people.bodies[id] end
+
+	function people.tick(dt)
+		watchTimer = watchTimer + (dt or 0)
+		if watchTimer < people.watchEvery or Core.host.entityState == nil then return end
+		watchTimer = 0
+		for id, entity in pairs(people.bodies) do
+			local st = Core.host.entityState(entity)
+			local p = people.get(id)
+			if st == "gone" or p == nil then
+				people.unbind(id)
+			elseif st == "dead" and p.status ~= "dead" then
+				people.update(id, { status = "dead" }, "died")
+				people.unbind(id)
+				if Core.incidents then
+					Core.incidents.report({ kind = "death", text = p.name .. " died.", place = p.place, district = p.district,
+						people = { [id] = "killed" }, severity = 4 })
+				end
+			elseif st == "down" and p.status == "alive" then
+				people.update(id, { status = "hurt" }, "knocked down")
+			end
+		end
 	end
 
 	---------------------------------------------------------------------------

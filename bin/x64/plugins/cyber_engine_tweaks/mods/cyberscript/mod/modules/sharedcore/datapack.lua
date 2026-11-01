@@ -14,6 +14,13 @@
 --   { "name": "core:person_relate",   "person": "p:12", "other": "p:13", "value": "friend" }
 --   { "name": "core:person_affiliate", "person": "p:12", "org": "tygerclaws", "value": "member", "secret": true }
 --   { "name": "core:person_leave",    "person": "p:12", "org": "tygerclaws" }
+--   { "name": "core:district_push",   "district": "watson", "org": "maelstrom", "value": 10 }
+--   { "name": "core:report_incident", "kind": "shooting", "text": "Shots fired outside Lizzie's", "place": "mymod:lizzies",
+--                                     "person": "p:12", "role": "hurt", "by": "maelstrom", "severity": 3, "news": true }
+--   { "name": "core:hire",            "person": "p:12", "org": "arasaka", "place": "mymod:office", "job": "analyst", "wage": 500 }
+--   { "name": "core:fire",            "person": "p:12" }
+--   { "name": "core:pay_person",      "person": "p:12", "value": 200 }
+--   { "name": "core:place_owner",     "place": "mymod:lizzies", "owner": "mox" }
 --
 -- Triggers (in requirements; "expected" works as usual):
 --   { "name": "core:heat_above",       "channel": "netwatch", "value": 50 }
@@ -26,6 +33,13 @@
 --   { "name": "core:person_status",    "person": "p:12", "value": "alive" }
 --   { "name": "core:person_affiliated", "person": "p:12", "org": "tygerclaws" }
 --   { "name": "core:person_attitude_above", "person": "p:12", "value": 20 }
+--   { "name": "core:time_between",     "from": 22, "to": 6 }
+--   { "name": "core:is_night" }
+--   { "name": "core:district_leader",  "district": "watson", "org": "maelstrom" }
+--   { "name": "core:influence_above",  "district": "watson", "org": "maelstrom", "value": 50 }
+--   { "name": "core:place_owner",      "place": "mymod:lizzies", "owner": "mox" }
+--   { "name": "core:person_at",        "person": "p:12", "place": "mymod:lizzies" }
+--   { "name": "core:person_money_above", "person": "p:12", "value": 1000 }
 --
 -- Variables (kept in step automatically):
 --   tag "core_heat", key = channel          tag "core_standing", key = organisation
@@ -52,6 +66,19 @@ return function(Core)
 			Core.people.affiliate(a.person, a.org, a.value, { secret = a.secret }, a.why or "datapack")
 		end,
 		["core:person_leave"] = function(a) Core.people.leave(a.person, a.org, a.why or "datapack") end,
+		["core:district_push"] = function(a) Core.districts.push(a.district, a.org, num(a.value), a.why or "datapack") end,
+		["core:report_incident"] = function(a)
+			local involved = {}
+			if a.person then involved[a.person] = a.role or "involved" end
+			Core.incidents.report({ kind = a.kind or "incident", text = a.text, place = a.place, district = a.district,
+				by = a.by, severity = num(a.severity, 2), news = a.news == true, people = involved })
+		end,
+		["core:hire"] = function(a)
+			Core.jobs.hire(a.person, { org = a.org, place = a.place, job = a.job, wage = tonumber(a.wage) }, a.why or "datapack")
+		end,
+		["core:fire"] = function(a) Core.jobs.fire(a.person, a.why or "datapack") end,
+		["core:pay_person"] = function(a) Core.people.pay(a.person, num(a.value), a.why or "datapack") end,
+		["core:place_owner"] = function(a) Core.places.setOwner(a.place, a.owner, a.why or "datapack") end,
 		["core:give_shares"] = function(a)
 			local s = Core.market.state()
 			local c = Core.market.get(a.ticker)
@@ -72,6 +99,19 @@ return function(Core)
 		["core:person_opinion_below"] = function(t) return Core.people.opinion(t.person) < num(t.value) end,
 		["core:person_affiliated"] = function(t) return Core.people.isAffiliated(t.person, t.org) ~= nil end,
 		["core:person_attitude_above"] = function(t) return Core.people.attitude(t.person) > num(t.value) end,
+		["core:time_between"] = function(t) return Core.time.between(num(t.from), num(t.to)) end,
+		["core:is_night"] = function() return Core.time.isNight() end,
+		["core:district_leader"] = function(t) return Core.districts.leader(t.district) == t.org end,
+		["core:influence_above"] = function(t) return Core.districts.influence(t.district, t.org) > num(t.value) end,
+		["core:place_owner"] = function(t)
+			local p = Core.places.get(t.place)
+			return p ~= nil and p.owner == t.owner
+		end,
+		["core:person_at"] = function(t)
+			local w = Core.routines.whereIs(t.person)
+			return w ~= nil and w.place == t.place
+		end,
+		["core:person_money_above"] = function(t) return Core.people.money(t.person) > num(t.value) end,
 		["core:person_status"] = function(t)
 			local p = Core.people.get(t.person)
 			return p ~= nil and p.status == (t.value or "alive")
