@@ -470,7 +470,7 @@ result = Game.IsEntityInInteriorArea(enti)
                                                 if(entName ~= nil and entAppName ~= nil)then
                                                         for i,filter in ipairs(trigger.filter) do
                                                                 
-                                                                if(string.match(entName, filter) or string.match(entAppName, filter) or string.match(entDispName, filter) or filter == tostring(newent:GetEntityID().hash))then 
+                                                                if(string.match(entName, filter) or string.match(entAppName, filter) or string.match(entDispName, filter) or filter == tostring(enti:GetEntityID().hash))then 
                                                                         result = true
                                                                 end
                                                         end
